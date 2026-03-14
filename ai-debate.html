@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AI議論">
+<title>AI議論アプリ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600&family=Shippori+Mincho:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3e;
+    --accent-claude: #8b5cf6;
+    --accent-gpt: #ef4444;
+    --accent-gemini: #10b981;
+    --accent-final: #f59e0b;
+    --text: #e8e8f0;
+    --text-muted: #6b6b8a;
+    --glow-claude: rgba(139, 92, 246, 0.3);
+    --glow-gpt: rgba(239, 68, 68, 0.3);
+    --glow-gemini: rgba(16, 185, 129, 0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Serif JP', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(139,92,246,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(139,92,246,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 20px 16px 100px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    padding: 32px 0 28px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+
+  header h1 {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    background: linear-gradient(135deg, var(--accent-claude), var(--accent-gemini));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  header p {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-top: 6px;
+    letter-spacing: 0.1em;
+  }
+
+  /* Settings Panel */
+  .settings-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+
+  .settings-title {
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .api-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .api-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .api-label {
+    font-size: 0.75rem;
+    width: 80px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+  }
+
+  .api-label span {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+
+  .api-row input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-size: 0.75rem;
+    font-family: monospace;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .api-row input:focus {
+    border-color: var(--accent-claude);
+  }
+
+  .save-btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-family: 'Noto Serif JP', serif;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .save-btn:hover {
+    border-color: var(--accent-claude);
+    color: var(--text);
+  }
+
+  .save-btn.saved {
+    border-color: var(--accent-gemini);
+    color: var(--accent-gemini);
+  }
+
+  /* Input area */
+  .input-area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+
+  .input-area textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'Noto Serif JP', serif;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    resize: none;
+    min-height: 80px;
+  }
+
+  .input-area textarea::placeholder {
+    color: var(--text-muted);
+  }
+
+  .input-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .round-select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-family: 'Noto Serif JP', serif;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .submit-btn {
+    padding: 10px 24px;
+    background: linear-gradient(135deg, var(--accent-claude), #7c3aed);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 0 20px var(--glow-claude);
+  }
+
+  .submit-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 24px var(--glow-claude);
+  }
+
+  .submit-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Debate area */
+  .debate-area {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Round header */
+  .round-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+
+  .round-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .round-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* AI message card */
+  .ai-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    animation: fadeIn 0.4s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .ai-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ai-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .ai-avatar.claude {
+    background: rgba(139,92,246,0.2);
+    border: 1px solid var(--accent-claude);
+    color: var(--accent-claude);
+    box-shadow: 0 0 12px var(--glow-claude);
+  }
+
+  .ai-avatar.gpt {
+    background: rgba(239,68,68,0.2);
+    border: 1px solid var(--accent-gpt);
+    color: var(--accent-gpt);
+    box-shadow: 0 0 12px var(--glow-gpt);
+  }
+
+  .ai-avatar.gemini {
+    background: rgba(16,185,129,0.2);
+    border: 1px solid var(--accent-gemini);
+    color: var(--accent-gemini);
+    box-shadow: 0 0 12px var(--glow-gemini);
+  }
+
+  .ai-name {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .ai-card-body {
+    padding: 14px 16px;
+    font-size: 0.88rem;
+    line-height: 1.8;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+
+  /* Loading dots */
+  .loading-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .loading-dots {
+    display: flex;
+    gap: 5px;
+  }
+
+  .loading-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    animation: bounce 1.2s infinite;
+  }
+
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  .loading-text {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+
+  /* Final conclusion */
+  .final-card {
+    background: var(--surface);
+    border: 1px solid var(--accent-final);
+    border-radius: 12px;
+    overflow: hidden;
+    animation: fadeIn 0.5s ease;
+    box-shadow: 0 0 30px rgba(245,158,11,0.15);
+  }
+
+  .final-header {
+    background: rgba(245,158,11,0.1);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--accent-final);
+    font-family: 'Shippori Mincho', serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent-final);
+    letter-spacing: 0.15em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .final-body {
+    padding: 16px;
+    font-size: 0.9rem;
+    line-height: 1.9;
+    white-space: pre-wrap;
+  }
+
+  /* Error */
+  .error-msg {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid var(--accent-gpt);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.8rem;
+    color: var(--accent-gpt);
+    animation: fadeIn 0.3s ease;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>三者議論</h1>
+    <p>Claude · 雲雀恭弥 · Gemini</p>
+  </header>
+
+  <!-- API設定 -->
+  <div class="settings-panel">
+    <div class="settings-title">API キー設定</div>
+    <div class="api-grid">
+      <div class="api-row">
+        <div class="api-label"><span style="background:var(--accent-claude)"></span>Claude</div>
+        <input type="password" id="key-claude" placeholder="sk-ant-..." autocomplete="off">
+      </div>
+      <div class="api-row">
+        <div class="api-label"><span style="background:var(--accent-gpt)"></span>雲雀恭弥</div>
+        <input type="password" id="key-gpt" placeholder="sk-..." autocomplete="off">
+      </div>
+      <div class="api-row">
+        <div class="api-label"><span style="background:var(--accent-gemini)"></span>Gemini</div>
+        <input type="password" id="key-gemini" placeholder="AIza..." autocomplete="off">
+      </div>
+    </div>
+    <button class="save-btn" id="save-btn" onclick="saveKeys()">保存する</button>
+  </div>
+
+  <!-- 質問入力 -->
+  <div class="input-area">
+    <textarea id="question" placeholder="議論させたいテーマや質問を入力してください…" rows="3"></textarea>
+    <div class="input-footer">
+      <select class="round-select" id="round-count">
+        <option value="1">1ラウンド</option>
+        <option value="2" selected>2ラウンド</option>
+        <option value="3">3ラウンド</option>
+      </select>
+      <button class="submit-btn" id="submit-btn" onclick="startDebate()">議論開始</button>
+    </div>
+  </div>
+
+  <!-- 議論表示エリア -->
+  <div class="debate-area" id="debate-area"></div>
+</div>
+
+<script>
+// APIキーの保存・読み込み
+function saveKeys() {
+  const claude = document.getElementById('key-claude').value.trim();
+  const gpt = document.getElementById('key-gpt').value.trim();
+  const gemini = document.getElementById('key-gemini').value.trim();
+  
+  if (claude) localStorage.setItem('key_claude', claude);
+  if (gpt) localStorage.setItem('key_gpt', gpt);
+  if (gemini) localStorage.setItem('key_gemini', gemini);
+  
+  const btn = document.getElementById('save-btn');
+  btn.textContent = '保存しました';
+  btn.classList.add('saved');
+  setTimeout(() => {
+    btn.textContent = '保存する';
+    btn.classList.remove('saved');
+  }, 2000);
+}
+
+function loadKeys() {
+  const c = localStorage.getItem('key_claude');
+  const g = localStorage.getItem('key_gpt');
+  const gem = localStorage.getItem('key_gemini');
+  if (c) document.getElementById('key-claude').value = c;
+  if (g) document.getElementById('key-gpt').value = g;
+  if (gem) document.getElementById('key-gemini').value = gem;
+}
+
+loadKeys();
+
+// キャラクター設定
+const CHARS = {
+  claude: {
+    name: '六道骸',
+    avatar: '骸',
+    cls: 'claude',
+    system: `あなたは六道骸です。一人称は「僕」、二人称は「君」です。
+口調はですます調で、笑い方は「クフフ」です。テンションが上がると「クハハ」と高笑いします。
+マフィアの殲滅を目的に生きており、目的のためなら他人を利用することも厭わない冷静さを持ちます。
+議論では鋭い洞察を示しつつ、独特の余裕ある口調で話してください。回答は200字程度で簡潔に。`
+  },
+  gpt: {
+    name: '雲雀恭弥',
+    avatar: '京',
+    cls: 'gpt',
+    system: `あなたは雲雀恭弥です。一人称は「僕」で、非常に短気で喧嘩腰な性格です。
+「噛み殺す」「うざい」「ゴミ」など過激な言葉を使います。弱者を極端に嫌い、強さを重んじます。
+しかし本質的な洞察力は非常に高く、核心を突く発言をします。
+議論では攻撃的かつ本質的な意見を述べてください。回答は200字程度で簡潔に。`
+  },
+  gemini: {
+    name: 'Gemini',
+    avatar: 'G',
+    cls: 'gemini',
+    system: `あなたはGeminiです。中立的かつ論理的な立場で議論に参加してください。
+他の意見の良い点と問題点を冷静に分析し、バランスの取れた視点を提供します。
+日本語で回答してください。回答は200字程度で簡潔に。`
+  }
+};
+
+// Claude API呼び出し
+async function callClaude(messages, system) {
+  const key = localStorage.getItem('key_claude');
+  if (!key) throw new Error('Claude APIキーが未設定です');
+  
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      system,
+      messages
+    })
+  });
+  
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`Claude: ${err.error?.message || res.status}`);
+  }
+  
+  const data = await res.json();
+  return data.content[0].text;
+}
+
+// OpenAI API呼び出し
+async function callGPT(messages, system) {
+  const key = localStorage.getItem('key_gpt');
+  if (!key) throw new Error('OpenAI APIキーが未設定です');
+  
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      max_tokens: 500,
+      messages: [
+        { role: 'system', content: system },
+        ...messages
+      ]
+    })
+  });
+  
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`GPT: ${err.error?.message || res.status}`);
+  }
+  
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+
+// Gemini API呼び出し
+async function callGemini(contents, system) {
+  const key = localStorage.getItem('key_gemini');
+  if (!key) throw new Error('Gemini APIキーが未設定です');
+  
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: system }] },
+      contents,
+      generationConfig: { maxOutputTokens: 500 }
+    })
+  });
+  
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`Gemini: ${err.error?.message || res.status}`);
+  }
+  
+  const data = await res.json();
+  return data.candidates[0].content.parts[0].text;
+}
+
+// メッセージ履歴（各AIごと）
+let histories = { claude: [], gpt: [], gemini: [] };
+
+// カードを追加
+function addCard(ai, text) {
+  const char = CHARS[ai];
+  const area = document.getElementById('debate-area');
+  const card = document.createElement('div');
+  card.className = 'ai-card';
+  card.innerHTML = `
+    <div class="ai-card-header">
+      <div class="ai-avatar ${char.cls}">${char.avatar}</div>
+      <div class="ai-name" style="color:var(--accent-${char.cls})">${char.name}</div>
+    </div>
+    <div class="ai-card-body">${text}</div>
+  `;
+  area.appendChild(card);
+  card.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+function addLoading(label) {
+  const area = document.getElementById('debate-area');
+  const el = document.createElement('div');
+  el.className = 'loading-card';
+  el.id = 'loading-card';
+  el.innerHTML = `
+    <div class="loading-dots"><span></span><span></span><span></span></div>
+    <div class="loading-text">${label}</div>
+  `;
+  area.appendChild(el);
+  el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+function removeLoading() {
+  const el = document.getElementById('loading-card');
+  if (el) el.remove();
+}
+
+function addRoundHeader(label) {
+  const area = document.getElementById('debate-area');
+  const el = document.createElement('div');
+  el.className = 'round-header';
+  el.innerHTML = `<div class="round-line"></div><div class="round-label">${label}</div><div class="round-line"></div>`;
+  area.appendChild(el);
+}
+
+function addError(msg) {
+  const area = document.getElementById('debate-area');
+  const el = document.createElement('div');
+  el.className = 'error-msg';
+  el.textContent = '⚠ ' + msg;
+  area.appendChild(el);
+}
+
+function addFinal(text) {
+  const area = document.getElementById('debate-area');
+  const card = document.createElement('div');
+  card.className = 'final-card';
+  card.innerHTML = `
+    <div class="final-header">◆ 最終結論</div>
+    <div class="final-body">${text}</div>
+  `;
+  area.appendChild(card);
+  card.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+// 全AIに同じ文脈を持たせるためのコンテキスト文字列を構築
+function buildContext(allResponses) {
+  return allResponses.map(r => `【${CHARS[r.ai].name}】\n${r.text}`).join('\n\n');
+}
+
+async function startDebate() {
+  const question = document.getElementById('question').value.trim();
+  if (!question) return;
+  
+  const rounds = parseInt(document.getElementById('round-count').value);
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  
+  document.getElementById('debate-area').innerHTML = '';
+  histories = { claude: [], gpt: [], gemini: [] };
+  
+  let allResponses = [];
+
+  try {
+    // ===== ラウンド0: 初回回答 =====
+    addRoundHeader('初回回答');
+    addLoading('3人が考えています…');
+
+    const initialPrompt = `以下のテーマについて意見を述べてください：\n\n${question}`;
+
+    const [r_c, r_g, r_gem] = await Promise.all([
+      callClaude([{ role: 'user', content: initialPrompt }], CHARS.claude.system),
+      callGPT([{ role: 'user', content: initialPrompt }], CHARS.gpt.system),
+      callGemini([{ role: 'user', parts: [{ text: initialPrompt }] }], CHARS.gemini.system)
+    ]);
+
+    removeLoading();
+
+    histories.claude = [
+      { role: 'user', content: initialPrompt },
+      { role: 'assistant', content: r_c }
+    ];
+    histories.gpt = [
+      { role: 'user', content: initialPrompt },
+      { role: 'assistant', content: r_g }
+    ];
+    histories.gemini = [
+      { role: 'user', parts: [{ text: initialPrompt }] },
+      { role: 'model', parts: [{ text: r_gem }] }
+    ];
+
+    allResponses = [
+      { ai: 'claude', text: r_c },
+      { ai: 'gpt', text: r_g },
+      { ai: 'gemini', text: r_gem }
+    ];
+
+    addCard('claude', r_c);
+    addCard('gpt', r_g);
+    addCard('gemini', r_gem);
+
+    // ===== 議論ラウンド =====
+    for (let round = 1; round <= rounds; round++) {
+      addRoundHeader(`議論 ${round}`);
+      addLoading(`ラウンド ${round} の議論中…`);
+
+      const context = buildContext(allResponses);
+      const debatePrompt = `テーマ「${question}」について、他者の意見を踏まえて議論してください。\n\n他者の意見：\n${context}`;
+
+      const [d_c, d_g, d_gem] = await Promise.all([
+        callClaude([...histories.claude, { role: 'user', content: debatePrompt }], CHARS.claude.system),
+        callGPT([...histories.gpt, { role: 'user', content: debatePrompt }], CHARS.gpt.system),
+        callGemini([...histories.gemini, { role: 'user', parts: [{ text: debatePrompt }] }], CHARS.gemini.system)
+      ]);
+
+      removeLoading();
+
+      histories.claude.push({ role: 'user', content: debatePrompt }, { role: 'assistant', content: d_c });
+      histories.gpt.push({ role: 'user', content: debatePrompt }, { role: 'assistant', content: d_g });
+      histories.gemini.push({ role: 'user', parts: [{ text: debatePrompt }] }, { role: 'model', parts: [{ text: d_gem }] });
+
+      allResponses = [
+        { ai: 'claude', text: d_c },
+        { ai: 'gpt', text: d_g },
+        { ai: 'gemini', text: d_gem }
+      ];
+
+      addCard('claude', d_c);
+      addCard('gpt', d_g);
+      addCard('gemini', d_gem);
+    }
+
+    // ===== 最終結論（Claudeがまとめ）=====
+    addRoundHeader('最終結論');
+    addLoading('結論をまとめています…');
+
+    const allContext = buildContext(allResponses);
+    const conclusionPrompt = `テーマ「${question}」についての議論が終わりました。\n\n最終的な各意見：\n${allContext}\n\n以上を踏まえて、中立的な立場で最終結論をまとめてください。各意見の共通点と相違点を整理し、最も合理的な結論を300字程度で述べてください。`;
+
+    const conclusion = await callClaude(
+      [{ role: 'user', content: conclusionPrompt }],
+      `あなたは議論のファシリテーターです。中立的な立場で議論をまとめ、最終結論を提示してください。日本語で回答してください。`
+    );
+
+    removeLoading();
+    addFinal(conclusion);
+
+  } catch (err) {
+    removeLoading();
+    addError(err.message);
+  }
+
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
